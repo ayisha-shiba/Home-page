@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
+from django.contrib.messages import get_messages
 from .models import CustomUser
 
 def is_admin(user):
@@ -37,6 +38,13 @@ def admin_dashboard_view(request):
 def admin_user_management_view(request):
     from django.utils import timezone
     from datetime import timedelta
+
+    # Filter out stale login failure messages if an authenticated admin reaches this page
+    storage = list(get_messages(request))
+    for message in storage:
+        if request.user.is_authenticated and request.user.is_superuser and str(message) == "Invalid credentials or you do not have admin access.":
+            continue
+        messages.add_message(request, message.level, message.message, extra_tags=message.extra_tags)
     
     users = CustomUser.objects.filter(is_superuser=False).order_by('-date_joined')
     active_count = users.filter(is_active=True).count()
